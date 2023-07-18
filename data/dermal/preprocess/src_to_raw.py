@@ -8,10 +8,7 @@ from tqdm import tqdm
 from bs4 import BeautifulSoup
 
 
-# with open('../scrap/tg420_page_src.json', 'r') as file:
-#     df = pd.DataFrame(json.load(file))
-
-with open('../scrap/tg42_035_page_src.json', 'r') as file:
+with open('../scrap/tg402_page_src.json', 'r') as file:
     df = pd.DataFrame(json.load(file))
 
 
@@ -83,7 +80,5 @@ for i in tqdm(range(len(df))):
         pass
     
 
-
 result = pd.DataFrame(result_)
-# result.to_excel('tg420_raw.xlsx', header = True, index = False)
-# result.to_excel('tg42_035_raw.xlsx', header = True, index = False)
+result.to_excel('tg402_raw.xlsx', header = True, index = False)
