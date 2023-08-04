@@ -1,0 +1,25 @@
+############ Dermal ############
+1. raw data: 9,333개
+2. descriptor가 'LD50', 'pproximate LD50', 'LD50 cut-off', 'other: Dermal median lethal dose (LD50)', 'other: LD50 dermal', 'other: acute dermal LD50', 'other: LD50 found to be greater than 5000 mg/kg'인 데이터 추출: 8,275개
+3. CasRN/측정단위/실험값이 없는 데이터는 삭제함. 하나의 화학물질이 여러 실험결과를 갖는 경우 평균을 계산하여 사용함. 하나의 화학물질의 실험결과가 범위로 구성된 경우 작은 값을 사용함: 3,723개
+4. 염/이온 전처리 후 SMILES 생성: 2,732개
+5. MACCS fingerprints가 생성되지 않는 데이터 제외: 2,710개
+
+
+########## Inhalation ##########
+1. raw data: 6,954개
+2. descriptor가 'LC50', 'other: LC50 (vapor / aerosol)', 'other: LC50 (vapor)', 'other: approximate LC50', 'other: LC50'인 데이터 추출: 5,804개
+3. CasRN/측정단위/실험값이 없는 데이터 삭제. 하나의 화학물질이 여러 실험결과를 갖는 경우 평균을 계산하여 사용. 하나의 화학물질의 실험값이 범위로 구성된 경우 작은값을 사용. 흡입 형식에 따라 데이터 분할: 
+    aerosol 1,137개 / vapor 583개 / gas 43개
+4. 염/이온 전처리 후 SMILES 생성: 
+    aerosol 861개 / vapor 412개 / gas 43개
+5. MACCS fingerprints가 생성되지 않는 데이터 제외: 
+    aerosol 853개 / vapor 408개 / gas 43개
+
+
+############# Oral #############
+1. raw data: 4,157개
+2. descriptor가 'LD50', 'LD50 cut-off', 'other: LD50 cut-off', 'other: LD50 cut-off (rat)', 'other: LD50 cut-off value', 'other: LD50 (cut off)'인 데이터 추출: 3,669개
+3. CasRN/측정단위/실험값이 없는 데이터는 삭제함. 하나의 화학물질이 여러 실험결과를 갖는 경우 평균을 계산하여 사용함. 하나의 화학물질의 실험결과가 범위로 구성된 경우 작은 값을 사용함: 756개
+4. 염/이온 전처리 후 SMILES 생성: 468개
+5. MACCS fingerprints가 생성되지 않는 데이터 제외: 464개
