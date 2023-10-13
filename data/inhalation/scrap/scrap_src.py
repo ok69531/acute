@@ -140,7 +140,7 @@ for p in range(1, page_num + 1):
         driver.find_element_by_xpath(next_page_path).click()
         time.sleep(1.5)
     
-    p += 1
+    # p += 1
     
 print(time.time() - start)
 
