@@ -37,6 +37,7 @@ plt.rcParams['figure.dpi'] = 300
 #%%
 data_tmp = pd.read_excel('data/dermal/dermal.xlsx')
 # data_tmp = pd.read_excel('data/oral/oral.xlsx', index_col = 0)
+# data_tmp = pd.read_excel('data/inhalation/aerosol.xlsx', index_col = 0)
 
 mols_tmp = [Chem.MolFromSmiles(s) for s in data_tmp.SMILES]
 none_idx = [i for i in range(len(mols_tmp)) if mols_tmp[i] == None]
