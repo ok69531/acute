@@ -13,3 +13,4 @@ SLURM*
 *.sh
 wandb
 *.json
+processed

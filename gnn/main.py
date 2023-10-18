@@ -15,7 +15,12 @@ from torch_geometric.loader import DataLoader
 
 from sklearn.metrics import (
     mean_squared_error,
-    mean_absolute_error
+    mean_absolute_error,
+    f1_score,
+    recall_score,
+    precision_score,
+    accuracy_score,
+    classification_report
 )
 from sklearn.model_selection import train_test_split
 
@@ -25,7 +30,7 @@ from module.mol import smiles2graph, read_graph_pyg
 import matplotlib.pyplot as plt
 plt.rcParams['figure.dpi'] = 300
 
-torch.autograd.set_detect_anomaly(True)
+# torch.autograd.set_detect_anomaly(True)
 
 
 #%%
@@ -74,7 +79,8 @@ class AcuteDataset(InMemoryDataset):
             g.id = torch.tensor([i])
             
             if self.classification:
-                g.y = torch.from_numpy(graph_target)[i].view(1, -1).to(torch.int64)
+                g.y = torch.nn.functional.one_hot(torch.from_numpy(graph_target))[i]
+                # g.y = torch.LongTensor(graph_target)[i].view(1, -1)
             else:
                 g.y = torch.from_numpy(graph_target)[i].view(1, -1).to(torch.float64)
         
@@ -86,10 +92,11 @@ class AcuteDataset(InMemoryDataset):
         torch.save((data, slices), self.processed_paths[0])
 
 
+
 #%%
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
-dataset = AcuteDataset('dataset/dermal', classification = False, log_transform = True)
+dataset = AcuteDataset('dataset/oral', classification = True, log_transform = False)
 
 num_test = round(len(dataset) * 0.1)
 num_val = round(len(dataset) * 0.1)
@@ -103,7 +110,7 @@ train_idx = shuffled[:num_train]
 val_idx = shuffled[num_train:num_train+num_val]
 test_idx = shuffled[-num_test:]
 
-train_loader = DataLoader(dataset[train_idx], batch_size = num_train, shuffle = True, num_workers = 0)
+train_loader = DataLoader(dataset[train_idx], batch_size = 32, shuffle = True, num_workers = 0)
 val_loader = DataLoader(dataset[val_idx], batch_size = 32, shuffle = False, num_workers = 0)
 test_loader = DataLoader(dataset[test_idx], batch_size = 32, shuffle = False, num_workers = 0)
 
@@ -118,16 +125,36 @@ def train(model, device, loader, criterion, optimizer):
         if batch.x.shape[0] == 1 or batch.batch[-1] == 0:
             pass
         else:
+            # y = torch.nn.functional.one_hot(batch.y.view(-1))
             
-            def closure():
-                optimizer.zero_grad()
-                pred = model(batch)
-                is_labeled = batch.y == batch.y
-                loss = criterion(pred.to(torch.float32)[is_labeled], batch.y.to(torch.float32)[is_labeled])
-                loss.backward(retain_graph = True)
-                return loss
+            optimizer.zero_grad()
+            pred = model(batch)
+            # is_labeled = batch.y == batch.y
+            loss = criterion(pred, batch.y.view(pred.shape))
+            loss.backward()
+        
+            optimizer.step()
+
+
+# def lbfgs_train(model, device, loader, criterion, optimizer):
+#     model.train()
+
+#     for step, batch in enumerate(loader):
+#         batch = batch.to(device)
+        
+#         if batch.x.shape[0] == 1 or batch.batch[-1] == 0:
+#             pass
+#         else:
             
-            optimizer.step(closure)
+#             def closure():
+#                 optimizer.zero_grad()
+#                 pred = model(batch)
+#                 is_labeled = batch.y == batch.y
+#                 loss = criterion(pred.to(torch.float32)[is_labeled], batch.y.to(torch.float32)[is_labeled])
+#                 loss.backward()
+#                 return loss
+            
+#             optimizer.step(closure)
 
 
 @torch.no_grad()
@@ -145,17 +172,39 @@ def evaluation(model, device, loader, criterion):
         else:
             pred = model(batch)
             
-            y = batch.y.view(pred.shape).to(torch.float32)
-            is_labeled = y == y
+            # y = torch.nn.functional.one_hot(batch.y.view(-1))
             # y_true.append(y[is_labeled].detach().cpu())
             
-            loss = criterion(pred[is_labeled], y[is_labeled])
+            loss = criterion(pred, batch.y.view(pred.shape))
+            # loss = criterion(pred[is_labeled], y[is_labeled])
             loss_list.append(loss)
         
     # y_true = torch.cat(y_true, dim = 0).numpy()
     loss_list = torch.stack(loss_list)
     
     return sum(loss_list)/len(loss_list)
+
+
+class FLoss(nn.Module):
+    def __init__(self, beta = 0.5, log_like = False):
+        super(FLoss, self).__init__()
+        
+        self.beta = beta
+        self.log_like = log_like
+        
+    def forward(self, pred, target):
+        eps = 1e-10
+        
+        TP = (pred * target).view(-1).sum()
+        H = self.beta * target.view(-1).sum() + pred.view(-1).sum()
+        fmeasure = (1 + self.beta) * TP / (H + eps)
+        
+        if self.log_like:
+            floss = -torch.log(fmeasure)
+        else:
+            floss = (1 - fmeasure)
+        
+        return floss
 
 
 #%%
@@ -175,7 +224,7 @@ def evaluation(model, device, loader, criterion):
 np.random.seed(seed)
 torch.manual_seed(seed)
 
-num_task = 1
+num_task = 5
 num_layer = 5
 emb_dim = 300
 gnn_type = 'gin'
@@ -193,10 +242,12 @@ model = GNNGraphPred(num_tasks = num_task, num_layer = num_layer,
 # model.load_state_dict(pretrain_model_params)
 model = model.to(device)
 
-optimizer = optim.LBFGS(model.parameters(), max_iter = 20, history_size = 20)
-# optimizer = optim.LBFGS(filter(lambda p: p.requires_grad, model.parameters()))
-# optimizer = optim.Adam(model.parameters(), lr = lr)
-criterion = nn.MSELoss()
+optimizer = optim.Adam(model.parameters(), lr = lr)
+# optimizer = optim.LBFGS(model.parameters(), max_iter = 20, history_size = 20)
+# criterion = nn.MSELoss()
+# criterion = nn.CrossEntropyLoss()
+criterion = FLoss()
+
 
 best_epoch = 0
 best_val_loss = 1e+10
@@ -237,9 +288,14 @@ for _, batch in enumerate(test_loader):
     pred = model(batch)
     test_pred.append(pred)
 
-test_pred = torch.cat(test_pred).view(-1).detach()
+# test_pred = torch.cat(test_pred).view(-1).detach()
+test_pred_prob = torch.cat(test_pred).detach()
+test_pred = torch.argmax(test_pred_prob, dim = 1)
 test_y = dataset[test_idx].y.view(-1)
 
+
+#%%
+print(classification_report(test_y.numpy(), test_pred.numpy()))
 
 # %%
 l = torch.linspace(0, max(torch.cat([test_pred, test_y])), 100)
